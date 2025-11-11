@@ -1,0 +1,409 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>SuperMark Mejorado</title>
+<style>
+  * { box-sizing: border-box; font-family: 'Segoe UI', sans-serif; }
+  body { background: #f4f4f4; margin: 0; padding: 0; font-size: 16px; transition: font-size 0.2s; }
+  header {
+    background: #ff8c42;
+    color: white;
+    padding: 15px;
+    text-align: center;
+    font-size: 1.7em;
+    font-weight: bold;
+    position: relative;
+  }
+
+  /* Botones de zoom */
+  #zoomControls {
+    position: absolute;
+    right: 15px;
+    top: 15px;
+  }
+  #zoomControls button {
+    background: #333;
+    color: white;
+    border: none;
+    padding: 8px 12px;
+    border-radius: 8px;
+    cursor: pointer;
+    margin-left: 4px;
+  }
+  #zoomControls button:hover { background: #000; }
+
+  .container {
+    width: 90%; max-width: 900px; margin: 25px auto;
+    background: white; padding: 20px; border-radius: 12px;
+    box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+  }
+  input, select, button {
+    width: 100%; padding: 10px; margin: 8px 0;
+    border: 1px solid #ccc; border-radius: 6px;
+  }
+  button {
+    background: #ff8c42; color: white;
+    border: none; cursor: pointer; font-weight: bold;
+    transition: 0.2s;
+  }
+  button:hover { background: #ff7a00; }
+
+  .hidden { display: none; }
+  table { width: 100%; border-collapse: collapse; margin-top: 15px; }
+  th, td { border: 1px solid #ddd; padding: 8px; text-align: center; }
+  th { background: #ff8c42; color: white; }
+  .oferta {
+    background: #fff3e0; border-left: 5px solid #ff8c42;
+    padding: 10px; border-radius: 8px; margin-top: 15px;
+  }
+  .producto {
+    border: 1px solid #ddd; padding: 10px; border-radius: 8px;
+    margin: 10px 0; background: #fafafa;
+  }
+  .producto h4 { margin: 0; color: #ff7a00; }
+
+  /* 🔔 Estilo de notificaciones tipo toast */
+  #notificaciones {
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    z-index: 1000;
+  }
+  .toast {
+    background: #333;
+    color: white;
+    padding: 12px 20px;
+    border-radius: 8px;
+    margin-bottom: 10px;
+    opacity: 0;
+    transform: translateX(100%);
+    animation: aparecer 0.4s forwards, desaparecer 0.4s ease-out 3s forwards;
+  }
+  .toast.exito { background: #4caf50; }
+  .toast.error { background: #e53935; }
+  .toast.info { background: #ff9800; }
+
+  @keyframes aparecer {
+    to {
+      opacity: 1;
+      transform: translateX(0);
+    }
+  }
+  @keyframes desaparecer {
+    to {
+      opacity: 0;
+      transform: translateX(100%);
+    }
+  }
+</style>
+</head>
+<body>
+
+<header>
+  🛒 SuperMark Mejorado
+  <div id="zoomControls">
+    <button onclick="disminuirFuente()">A−</button>
+    <button onclick="aumentarFuente()">A+</button>
+  </div>
+</header>
+
+<div id="notificaciones"></div>
+
+<!-- LOGIN -->
+<div class="container" id="login-section">
+  <h2>Iniciar sesión</h2>
+  <input type="text" id="userLogin" placeholder="Usuario" />
+  <input type="password" id="passLogin" placeholder="Contraseña" />
+  <select id="rolLogin">
+    <option value="cliente">Cliente</option>
+    <option value="admin">Administrador</option>
+  </select>
+  <button onclick="login()">Entrar</button>
+  <p>¿No tienes cuenta? <span style="color:#ff8c42; cursor:pointer;" onclick="mostrarRegistro()">Regístrate aquí</span></p>
+</div>
+
+<!-- REGISTRO -->
+<div class="container hidden" id="registro-section">
+  <h2>Registro</h2>
+  <input type="text" id="nuevoUsuario" placeholder="Nuevo usuario" />
+  <input type="password" id="nuevaPass" placeholder="Nueva contraseña" />
+  <select id="nuevoRol">
+    <option value="cliente">Cliente</option>
+    <option value="admin">Administrador</option>
+  </select>
+  <button onclick="registrar()">Registrar</button>
+  <p><span style="color:#ff8c42; cursor:pointer;" onclick="mostrarLogin()">Volver al login</span></p>
+</div>
+
+<!-- ADMIN -->
+<div class="container hidden" id="admin-section">
+  <h2>Panel de Administrador</h2>
+  <button onclick="cerrarSesion()">Cerrar sesión</button>
+
+  <h3>Gestión de Productos</h3>
+  <input type="text" id="nombreProducto" placeholder="Nombre del producto" />
+  <input type="number" id="precioProducto" placeholder="Precio" />
+  <input type="number" id="stockProducto" placeholder="Stock" />
+  <label><input type="checkbox" id="ofertaProducto" /> Producto en oferta</label>
+  <button onclick="agregarProducto()">Agregar producto</button>
+
+  <table>
+    <thead>
+      <tr><th>Producto</th><th>Precio</th><th>Stock</th><th>Oferta</th><th>Acción</th></tr>
+    </thead>
+    <tbody id="tablaProductos"></tbody>
+  </table>
+
+  <h3>Reportes</h3>
+  <p>Total de productos registrados: <b id="reporteTotal">0</b></p>
+  <p>Productos en oferta: <b id="reporteOfertas">0</b></p>
+</div>
+
+<!-- CLIENTE -->
+<div class="container hidden" id="cliente-section">
+  <h2>Bienvenido a SuperMark</h2>
+  <button onclick="cerrarSesion()">Cerrar sesión</button>
+
+  <h3>🧡 Ofertas del día</h3>
+  <div id="ofertas"></div>
+
+  <h3>🛍 Catálogo de productos</h3>
+  <div id="catalogo"></div>
+
+  <h3>🛒 Mi carrito</h3>
+  <table>
+    <thead>
+      <tr><th>Producto</th><th>Cantidad</th><th>Total</th><th>Acción</th></tr>
+    </thead>
+    <tbody id="tablaCarrito"></tbody>
+  </table>
+  <p><b>Total a pagar:</b> S/ <span id="totalPagar">0.00</span></p>
+  <button onclick="finalizarCompra()">Finalizar compra</button>
+</div>
+
+<script>
+let usuarios = JSON.parse(localStorage.getItem('usuarios')) || [
+  { usuario: 'admin', pass: '1234', rol: 'admin' },
+  { usuario: 'cliente', pass: '1234', rol: 'cliente' }
+];
+let productos = JSON.parse(localStorage.getItem('productos')) || [];
+let carrito = [];
+let tamanoFuente = 16;
+
+/* 🔎 Funciones de Zoom */
+function aumentarFuente() {
+  tamanoFuente += 2;
+  document.body.style.fontSize = tamanoFuente + 'px';
+}
+function disminuirFuente() {
+  if (tamanoFuente > 10) {
+    tamanoFuente -= 2;
+    document.body.style.fontSize = tamanoFuente + 'px';
+  }
+}
+
+/* 🔔 Notificaciones dinámicas */
+function notificar(mensaje, tipo = 'info') {
+  const contenedor = document.getElementById('notificaciones');
+  const toast = document.createElement('div');
+  toast.className = `toast ${tipo}`;
+  toast.textContent = mensaje;
+  contenedor.appendChild(toast);
+  setTimeout(() => toast.remove(), 4000);
+}
+
+/* Funciones principales */
+function guardarDatos() {
+  localStorage.setItem('usuarios', JSON.stringify(usuarios));
+  localStorage.setItem('productos', JSON.stringify(productos));
+}
+
+function mostrarRegistro() {
+  document.getElementById('login-section').classList.add('hidden');
+  document.getElementById('registro-section').classList.remove('hidden');
+}
+
+function mostrarLogin() {
+  document.getElementById('registro-section').classList.add('hidden');
+  document.getElementById('login-section').classList.remove('hidden');
+}
+
+function login() {
+  const user = document.getElementById('userLogin').value.trim();
+  const pass = document.getElementById('passLogin').value.trim();
+  const rol = document.getElementById('rolLogin').value;
+  const usuario = usuarios.find(u => u.usuario === user && u.pass === pass && u.rol === rol);
+
+  if (!usuario) return notificar('Usuario o contraseña incorrectos', 'error');
+
+  document.querySelectorAll('.container').forEach(c => c.classList.add('hidden'));
+
+  if (rol === 'admin') {
+    document.getElementById('admin-section').classList.remove('hidden');
+    actualizarTablaProductos();
+  } else {
+    document.getElementById('cliente-section').classList.remove('hidden');
+    mostrarCatalogo();
+  }
+
+  notificar(`Bienvenido, ${user}!`, 'exito');
+}
+
+function registrar() {
+  const nuevoU = document.getElementById('nuevoUsuario').value.trim();
+  const nuevaP = document.getElementById('nuevaPass').value.trim();
+  const nuevoR = document.getElementById('nuevoRol').value;
+
+  if (!nuevoU || !nuevaP) return notificar('Completa todos los campos', 'error');
+  if (usuarios.some(u => u.usuario === nuevoU)) return notificar('Ese usuario ya existe', 'error');
+
+  usuarios.push({ usuario: nuevoU, pass: nuevaP, rol: nuevoR });
+  guardarDatos();
+  notificar('Usuario registrado correctamente', 'exito');
+  mostrarLogin();
+}
+
+function cerrarSesion() {
+  document.querySelectorAll('.container').forEach(c => c.classList.add('hidden'));
+  document.getElementById('login-section').classList.remove('hidden');
+  notificar('Sesión cerrada', 'info');
+}
+
+function agregarProducto() {
+  const nombre = document.getElementById('nombreProducto').value.trim();
+  const precio = parseFloat(document.getElementById('precioProducto').value);
+  const stock = parseInt(document.getElementById('stockProducto').value);
+  const oferta = document.getElementById('ofertaProducto').checked;
+
+  if (!nombre || isNaN(precio) || isNaN(stock)) return notificar('Completa todos los campos', 'error');
+
+  productos.push({ nombre, precio, stock, oferta });
+  guardarDatos();
+  actualizarTablaProductos();
+  notificar('Producto agregado', 'exito');
+
+  document.getElementById('nombreProducto').value = '';
+  document.getElementById('precioProducto').value = '';
+  document.getElementById('stockProducto').value = '';
+  document.getElementById('ofertaProducto').checked = false;
+}
+
+function eliminarProducto(i) {
+  productos.splice(i, 1);
+  guardarDatos();
+  actualizarTablaProductos();
+  notificar('Producto eliminado', 'info');
+}
+
+function actualizarTablaProductos() {
+  const tabla = document.getElementById('tablaProductos');
+  tabla.innerHTML = '';
+  productos.forEach((p, i) => {
+    tabla.innerHTML += `
+      <tr>
+        <td>${p.nombre}</td>
+        <td>S/ ${p.precio.toFixed(2)}</td>
+        <td>${p.stock}</td>
+        <td>${p.oferta ? 'Sí' : 'No'}</td>
+        <td><button onclick="eliminarProducto(${i})">Eliminar</button></td>
+      </tr>`;
+  });
+
+  document.getElementById('reporteTotal').textContent = productos.length;
+  document.getElementById('reporteOfertas').textContent = productos.filter(p => p.oferta).length;
+}
+
+function mostrarCatalogo() {
+  const catalogo = document.getElementById('catalogo');
+  const ofertas = document.getElementById('ofertas');
+  catalogo.innerHTML = '';
+  ofertas.innerHTML = '';
+
+  const ofertasAct = productos.filter(p => p.oferta);
+
+  if (ofertasAct.length === 0) {
+    ofertas.innerHTML = '<p>No hay ofertas disponibles</p>';
+  } else {
+    ofertasAct.forEach(p => {
+      ofertas.innerHTML += `
+        <div class='oferta'>
+          <strong>${p.nombre}</strong> - S/ ${p.precio.toFixed(2)} (Stock: ${p.stock})
+          <button onclick="agregarAlCarrito('${p.nombre}')">Agregar</button>
+        </div>`;
+    });
+  }
+
+  productos.forEach(p => {
+    catalogo.innerHTML += `
+      <div class='producto'>
+        <h4>${p.nombre}</h4>
+        <p>Precio: S/ ${p.precio.toFixed(2)}</p>
+        <p>Stock: ${p.stock}</p>
+        <button onclick="agregarAlCarrito('${p.nombre}')">Agregar al carrito</button>
+      </div>`;
+  });
+}
+
+function agregarAlCarrito(nombre) {
+  const producto = productos.find(p => p.nombre === nombre);
+  if (!producto || producto.stock <= 0) return notificar('Sin stock disponible', 'error');
+
+  producto.stock--;
+
+  const item = carrito.find(c => c.nombre === nombre);
+  if (item) item.cantidad++;
+  else carrito.push({ nombre, precio: producto.precio, cantidad: 1 });
+
+  guardarDatos();
+  mostrarCatalogo();
+  actualizarCarrito();
+  notificar(`${nombre} agregado al carrito`, 'exito');
+}
+
+function quitarDelCarrito(i) {
+  const item = carrito[i];
+  const prod = productos.find(p => p.nombre === item.nombre);
+  prod.stock += item.cantidad;
+
+  carrito.splice(i, 1);
+  guardarDatos();
+  mostrarCatalogo();
+  actualizarCarrito();
+  notificar('Producto quitado del carrito', 'info');
+}
+
+function actualizarCarrito() {
+  const tabla = document.getElementById('tablaCarrito');
+  tabla.innerHTML = '';
+  let total = 0;
+
+  carrito.forEach((c, i) => {
+    const subtotal = c.precio * c.cantidad;
+    total += subtotal;
+
+    tabla.innerHTML += `
+      <tr>
+        <td>${c.nombre}</td>
+        <td>${c.cantidad}</td>
+        <td>S/ ${subtotal.toFixed(2)}</td>
+        <td><button onclick="quitarDelCarrito(${i})">Quitar</button></td>
+      </tr>`;
+  });
+
+  document.getElementById('totalPagar').textContent = total.toFixed(2);
+}
+
+/* 💳 Finalizar compra */
+function finalizarCompra() {
+  if (carrito.length === 0) return notificar('El carrito está vacío', 'error');
+  carrito = [];
+  actualizarCarrito();
+  guardarDatos();
+  notificar('¡Compra realizada con éxito! 🎉', 'exito');
+}
+</script>
+
+</body>
+</html>
